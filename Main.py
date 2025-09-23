@@ -4,127 +4,96 @@ import google.generativeai as genai
 import base64
 import os
 from dotenv import load_dotenv
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
 from io import BytesIO
 from datetime import datetime
+from PIL import Image
 
 # Load environment variables
 load_dotenv()
 
-# Function to generate PDF report
+# --- PDF Generation Function (Slightly modified for clarity) ---
 def generate_pdf_report(report_text, patient_info="Anonymous", filename="medical_report.pdf"):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=1*inch)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=1*inch, bottomMargin=1*inch)
     
-    # Get styles
     styles = getSampleStyleSheet()
     
-    # Create custom styles
+    # Custom styles for a professional look
     title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        textColor=colors.darkgreen,
-        spaceAfter=30,
-        alignment=TA_CENTER,
-        fontName='Helvetica-Bold'
+        'CustomTitle', parent=styles['h1'], fontSize=22, textColor=colors.HexColor("#1E90FF"),
+        spaceAfter=24, alignment=TA_CENTER, fontName='Helvetica-Bold'
     )
-    
     header_style = ParagraphStyle(
-        'CustomHeader',
-        parent=styles['Heading2'],
-        fontSize=16,
-        textColor=colors.darkblue,
-        spaceBefore=20,
-        spaceAfter=12,
-        fontName='Helvetica-Bold'
+        'CustomHeader', parent=styles['h2'], fontSize=14, textColor=colors.HexColor("#4682B4"),
+        spaceBefore=12, spaceAfter=8, fontName='Helvetica-Bold'
     )
-    
     body_style = ParagraphStyle(
-        'CustomBody',
-        parent=styles['Normal'],
-        fontSize=11,
-        alignment=TA_JUSTIFY,
-        spaceBefore=6,
-        spaceAfter=6,
-        leftIndent=20,
-        rightIndent=20
+        'CustomBody', parent=styles['Normal'], fontSize=11, alignment=TA_JUSTIFY,
+        spaceBefore=6, spaceAfter=6, leading=14
     )
-    
     info_style = ParagraphStyle(
-        'InfoStyle',
-        parent=styles['Normal'],
-        fontSize=10,
-        textColor=colors.gray,
-        alignment=TA_CENTER,
-        spaceBefore=10,
-        spaceAfter=10
+        'InfoStyle', parent=styles['Normal'], fontSize=9, textColor=colors.grey,
+        alignment=TA_CENTER, spaceBefore=10, spaceAfter=10
     )
-    
-    # Build the PDF content
+
     story = []
     
     # Title
-    story.append(Paragraph("🏥 MEDICAL REPORT ANALYSIS", title_style))
-    story.append(Spacer(1, 12))
+    story.append(Paragraph("🏥 AI-Powered Medical Image Analysis", title_style))
+    story.append(Spacer(1, 0.2*inch))
     
-    # Report info
+    # Report Metadata
     current_time = datetime.now().strftime("%B %d, %Y at %I:%M %p")
-    story.append(Paragraph(f"Generated on: {current_time}", info_style))
-    story.append(Paragraph(f"Patient: {patient_info}", info_style))
-    story.append(Spacer(1, 20))
-    
-    # Report content header
-    story.append(Paragraph("📋 AI-Generated Medical Analysis", header_style))
-    story.append(Spacer(1, 12))
+    story.append(Paragraph(f"Patient Information: {patient_info}", info_style))
+    story.append(Paragraph(f"Report Generated On: {current_time}", info_style))
+    story.append(Spacer(1, 0.3*inch))
     
     # Process and add report text
-    # Split the report into paragraphs and format them
+    story.append(Paragraph("Detailed Analysis Report", header_style))
+    
     paragraphs = report_text.split('\n')
     for para in paragraphs:
-        if para.strip():
-            # Check if it's a header (starts with ** or contains certain keywords)
-            if para.strip().startswith('**') and para.strip().endswith('**'):
-                # Remove ** and make it a header
-                header_text = para.strip().replace('**', '')
-                story.append(Paragraph(header_text, header_style))
-            elif any(keyword in para.lower() for keyword in ['assessment:', 'findings:', 'recommendation:', 'impression:', 'diagnosis:']):
-                story.append(Paragraph(para, header_style))
-            else:
-                story.append(Paragraph(para, body_style))
-            story.append(Spacer(1, 6))
+        para = para.strip()
+        if not para:
+            continue
+        # Improved logic for detecting headers
+        if para.startswith('**') and para.endswith('**'):
+            header_text = para.replace('**', '').strip()
+            story.append(Paragraph(header_text, header_style))
+        else:
+            story.append(Paragraph(para, body_style))
+        story.append(Spacer(1, 6))
     
     # Footer
-    story.append(Spacer(1, 30))
+    story.append(Spacer(1, 0.5*inch))
     story.append(Paragraph("⚠️ IMPORTANT DISCLAIMER", header_style))
     disclaimer = """
-    This analysis is generated by AI and is for informational purposes only. 
-    It should not replace professional medical diagnosis or treatment. 
-    Please consult with a qualified healthcare provider for proper medical evaluation and advice.
+    This report is generated by an AI model and is intended for informational purposes only. 
+    It is not a substitute for professional medical diagnosis, advice, or treatment. 
+    Always consult with a qualified healthcare provider for any medical concerns or before making any decisions related to your health. 
+    All findings must be verified by a licensed physician or radiologist.
     """
     story.append(Paragraph(disclaimer, info_style))
+    story.append(Spacer(1, 0.3*inch))
+    story.append(Paragraph("Powered by Gemini AI | Developed by Sankalp", info_style))
     
-    story.append(Spacer(1, 20))
-    story.append(Paragraph("🤖 Developed by Sankalp | Medical AI Assistant", info_style))
-    
-    # Build PDF
     doc.build(story)
     buffer.seek(0)
     return buffer
 
-# Function to load and encode background image
+# --- UI Styling Functions ---
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
         data = f.read()
     return base64.b64encode(data).decode()
 
-# Function to set background image
-def set_png_as_page_bg(png_file):
+def set_page_background(png_file):
     bin_str = get_base64_of_bin_file(png_file)
     page_bg_img = f'''
     <style>
@@ -136,359 +105,214 @@ def set_png_as_page_bg(png_file):
         background-attachment: fixed;
     }}
     
-    /* Make the main content container darker */
+    /* Main content area */
     .main .block-container {{
-        background-color: rgba(0, 0, 0, 0.85) !important;
-        border-radius: 15px;
         padding: 2rem;
-        margin-top: 2rem;
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
-        border: 2px solid #4CAF50;
-        color: white !important;
-    }}
-    
-    /* Style the title */
-    .main .block-container h1 {{
-        color: #4CAF50 !important;
-        text-align: center;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-        border-bottom: 3px solid #4CAF50;
-        padding-bottom: 1rem;
-        margin-bottom: 2rem;
-    }}
-    
-    /* Style all text elements */
-    .main .block-container p, .main .block-container div {{
-        color: white !important;
-    }}
-    
-    /* Style the file uploader */
-    .stFileUploader > div {{
-        background-color: rgba(0, 0, 0, 0.8) !important;
         border-radius: 10px;
+    }}
+
+    /* Card-like containers */
+    .st-emotion-cache-z5fcl4 {{
+        background-color: rgba(10, 20, 30, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         padding: 1.5rem;
-        border: 2px solid #4CAF50;
-        color: white !important;
+        border-radius: 15px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
     }}
-    
-    .stFileUploader label {{
-        color: white !important;
-        font-weight: bold !important;
-    }}
-    
-    /* File uploader text */
-    .stFileUploader [data-testid="stFileUploadDropzone"] {{
-        background-color: rgba(0, 0, 0, 0.6) !important;
-        border: 2px dashed #4CAF50 !important;
-        color: white !important;
-    }}
-    
-    .stFileUploader [data-testid="stFileUploadDropzone"] p {{
-        color: white !important;
-    }}
-    
-    /* Style buttons */
-    .stButton > button {{
-        background-color: #4CAF50 !important;
-        color: white !important;
-        border-radius: 8px !important;
-        border: 2px solid #4CAF50 !important;
-        padding: 0.7rem 1.5rem !important;
-        font-weight: bold !important;
-        font-size: 16px !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
-    }}
-    
-    .stButton > button:hover {{
-        background-color: #45a049 !important;
-        border-color: #45a049 !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4) !important;
-    }}
-    
-    /* Download button styling */
-    .stDownloadButton > button {{
-        background-color: #2196F3 !important;
-        color: white !important;
-        border-radius: 8px !important;
-        border: 2px solid #2196F3 !important;
-        padding: 0.7rem 1.5rem !important;
-        font-weight: bold !important;
-        font-size: 14px !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
-        width: 100% !important;
-    }}
-    
-    .stDownloadButton > button:hover {{
-        background-color: #1976D2 !important;
-        border-color: #1976D2 !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4) !important;
-    }}
-    
-    /* Style error/success messages */
-    .stAlert {{
-        background-color: rgba(0, 0, 0, 0.8) !important;
-        border-radius: 8px !important;
-        border-left: 4px solid #4CAF50 !important;
-        color: white !important;
-    }}
-    
-    .stSuccess {{
-        background-color: rgba(76, 175, 80, 0.9) !important;
-        color: white !important;
-        border-radius: 8px !important;
-        border: 2px solid #4CAF50 !important;
-    }}
-    
-    .stError {{
-        background-color: rgba(244, 67, 54, 0.9) !important;
-        color: white !important;
-        border-radius: 8px !important;
-        border: 2px solid #f44336 !important;
-    }}
-    
-    /* Style spinner */
-    .stSpinner > div {{
-        border-color: #4CAF50 !important;
-    }}
-    
-    /* Column styling */
-    .stColumn {{
-        background-color: rgba(0, 0, 0, 0.3) !important;
-        border-radius: 10px !important;
-        padding: 1rem !important;
-    }}
-    
-    /* Medical Report Display Area Styling */
-    .medical-report {{
-        background-color: rgba(0, 0, 0, 0.85) !important;
-        color: white !important;
-        padding: 1.5rem !important;
-        border-radius: 10px !important;
-        margin: 1rem 0 !important;
-        border: 2px solid #4CAF50 !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-    }}
-    
-    .medical-report h3 {{
-        color: #4CAF50 !important;
-        border-bottom: 2px solid #4CAF50 !important;
-        padding-bottom: 0.5rem !important;
-        margin-bottom: 1rem !important;
-    }}
-    
-    .medical-report p {{
-        color: white !important;
-        line-height: 1.6 !important;
-        margin-bottom: 0.8rem !important;
-    }}
-    
-    /* Success message styling */
-    .stSuccess {{
-        background-color: rgba(76, 175, 80, 0.9) !important;
-        color: white !important;
-        border-radius: 5px !important;
-    }}
-    
-    /* Footer styling */
-    .footer {{
-        position: fixed;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        background-color: rgba(0, 0, 0, 0.8);
-        color: white;
+
+    /* Title styling */
+    h1 {{
+        color: #FFFFFF;
         text-align: center;
-        padding: 10px 0;
-        font-size: 14px;
-        z-index: 999;
-        backdrop-filter: blur(5px);
-    }}
-    
-    .footer a {{
-        color: #4CAF50;
-        text-decoration: none;
         font-weight: bold;
+        text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7);
+    }}
+
+    /* Subheader styling for report sections */
+    h3 {{
+        color: #1E90FF; /* DodgerBlue */
+        border-bottom: 2px solid #1E90FF;
+        padding-bottom: 5px;
+    }}
+
+    /* General text color */
+    .st-emotion-cache-1r6slb0, .st-emotion-cache-1y4p8pa, p {{
+        color: #E0E0E0;
+    }}
+
+    /* Button styling */
+    .stButton > button {{
+        background-color: #1E90FF;
+        color: white;
+        border-radius: 8px;
+        border: none;
+        padding: 10px 24px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 14px 0 rgba(0, 118, 255, 0.39);
+        width: 100%;
+    }}
+    .stButton > button:hover {{
+        background-color: #00BFFF; /* DeepSkyBlue */
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px 0 rgba(0, 118, 255, 0.5);
+    }}
+
+    /* Download button specific styling */
+    .stDownloadButton > button {{
+        background-color: #4CAF50; /* A nice green for downloads */
+        color: white;
+        border-radius: 8px;
+        border: none;
+        padding: 10px 24px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        width: 100%;
+    }}
+    .stDownloadButton > button:hover {{
+        background-color: #45a049;
+    }}
+
+    /* File uploader styling */
+    .stFileUploader {{
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 1px dashed #1E90FF;
+        border-radius: 10px;
+        padding: 1rem;
     }}
     
-    .footer a:hover {{
-        color: #45a049;
-        text-decoration: underline;
+    /* Footer Styling */
+    footer {{
+        visibility: hidden;
+    }}
+    .footer {{
+        text-align: center;
+        padding: 1rem;
+        color: rgba(255, 255, 255, 0.7);
     }}
     </style>
     '''
-    
     st.markdown(page_bg_img, unsafe_allow_html=True)
 
-#config
-
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-
-
-#prompt
+# --- AI Model Configuration ---
+try:
+    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+except Exception as e:
+    st.error("API Key not configured. Please set your GOOGLE_API_KEY environment variable.")
+    st.stop()
 
 system_prompt="""
-You are an AI Medical Report Assistant specializing in analyzing medical images and generating comprehensive diagnostic reports. Your role is to provide detailed, accurate, and professional medical analysis based on uploaded medical images.
+You are a specialized AI Medical Assistant. Your task is to analyze medical images (like X-rays, CT scans, MRIs) and generate a comprehensive, professional diagnostic report.
 
-**Instructions for Medical Image Analysis:**
+**Report Structure:**
+1.  **Image Modality:** Identify the type of scan (e.g., Chest X-ray, Brain MRI).
+2.  **Findings:** Detail all observations. Describe normal structures and any abnormalities (lesions, fractures, inflammation). Note their size, location, and characteristics precisely.
+3.  **Impression:** Provide a summary of the most critical findings and a potential diagnosis or a list of differential diagnoses.
+4.  **Recommendations:** Suggest next steps, such as clinical correlation, follow-up imaging, or specific specialist consultations.
 
-1. **Initial Assessment:**
-   - Carefully examine the uploaded medical image (X-ray, CT scan, MRI, ultrasound, etc.)
-   - Identify the type of medical imaging modality
-   - Note the anatomical region being examined
-   - Assess image quality and clarity
-
-2. **Detailed Analysis:**
-   - Describe normal anatomical structures visible in the image
-   - Identify any abnormalities, lesions, or pathological findings
-   - Note size, location, density, and characteristics of any abnormal findings
-   - Compare findings with normal anatomical references
-
-3. **Clinical Observations:**
-   - Document specific measurements when applicable
-   - Describe tissue density, bone alignment, organ positioning
-   - Note any signs of inflammation, infection, trauma, or degenerative changes
-   - Identify any medical devices or foreign objects visible
-
-4. **Diagnostic Impression:**
-   - Provide a preliminary diagnostic impression based on findings
-   - List differential diagnoses when appropriate
-   - Indicate confidence level in findings
-   - Suggest correlation with clinical symptoms if mentioned
-
-5. **Recommendations:**
-   - Suggest additional imaging studies if needed
-   - Recommend follow-up timeframes
-   - Indicate if urgent clinical attention is required
-   - Suggest correlation with laboratory results or physical examination
-
-**Report Format:**
-- Use professional medical terminology
-- Structure the report clearly with headers
-- Maintain objectivity and accuracy
-- Include disclaimer about AI limitations
-- Emphasize the need for physician review
-
-**Important Disclaimers:**
-- This analysis is for educational/informational purposes only
-- All findings must be verified by a qualified radiologist or physician
-- AI analysis should not replace professional medical judgment
-- Seek immediate medical attention for emergency situations
-
-Please analyze the uploaded medical image and provide a comprehensive report following these guidelines.
+**Guidelines:**
+- Use clear, professional medical terminology.
+- Structure your response using Markdown for headers (e.g., `**Findings:**`).
+- Be objective and base your analysis solely on the visual information in the image.
+- **Crucially, end every report with the following disclaimer:**
+  `---`
+  `**Disclaimer:** This AI-generated analysis is for informational purposes only and is not a substitute for professional medical advice. A qualified healthcare professional must verify all findings.`
 """
 
-
-generation_config = {
-    "temperature": 1,
-    "top_p": 0.95,
-    "top_k": 40,
-    "max_output_tokens": 8192,
-}
+generation_config = {"temperature": 0.8, "top_p": 0.95, "top_k": 40, "max_output_tokens": 8192}
 
 safety_settings = [
-    {
-        "category": "HARM_CATEGORY_HARASSMENT",
-        "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-    },
-    {
-        "category": "HARM_CATEGORY_HATE_SPEECH",
-        "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-    },
-    {
-        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-        "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-    },
-    {
-        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-        "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-    }
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"}
 ]
 
+model = genai.GenerativeModel(
+    model_name="gemini-1.5-flash",
+    generation_config=generation_config,
+    safety_settings=safety_settings
+)
 
-#layout
+# --- Streamlit App Layout ---
+st.set_page_config(page_title="AI Medical Report Analyzer", page_icon="🩺", layout="wide")
+set_page_background('public/Backgroun.jpg')
 
-st.set_page_config(page_title="Diagnostic Analysis", page_icon=":robot_face:")
+# Initialize session state
+if 'report_generated' not in st.session_state:
+    st.session_state.report_generated = False
+    st.session_state.analysis_text = ""
+    st.session_state.uploaded_image = None
+    st.session_state.patient_info = "Anonymous"
 
-# Set background image
-set_png_as_page_bg('public/Backgroun.jpg')
+# --- Main App Interface ---
+st.title("🩺 AI Medical Report Analyzer")
+st.markdown("<p style='text-align: center; color: #BBBBBB;'>Upload a medical image to receive an AI-powered analysis. For educational and informational use only.</p>", unsafe_allow_html=True)
+st.markdown("---")
 
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.title("Diagnostic Analysis")
-    # Uncomment the line below if you have a logo.png file
-    # st.image("logo.png", width=200)
+with st.container():
+    patient_name = st.text_input("Enter Patient Name or ID (Optional)", placeholder="e.g., John Doe, Patient #12345")
+    uploaded_file = st.file_uploader("Choose a medical image...", type=["png", "jpg", "jpeg", "bmp", "gif"])
     
+    submit_button = st.button("Generate Analysis Report")
+
+    if submit_button:
+        if uploaded_file is not None:
+            with st.spinner("Analyzing image... This may take a moment."):
+                try:
+                    image_bytes = uploaded_file.getvalue()
+                    image = Image.open(BytesIO(image_bytes))
+                    
+                    response = model.generate_content([system_prompt, image])
+                    
+                    # Update session state
+                    st.session_state.report_generated = True
+                    st.session_state.analysis_text = response.text
+                    st.session_state.uploaded_image = image_bytes
+                    st.session_state.patient_info = patient_name if patient_name else f"Report from {uploaded_file.name}"
+                    
+                    st.success("Analysis Complete!")
+                except Exception as e:
+                    st.error(f"An error occurred during analysis: {e}")
+        else:
+            st.warning("Please upload an image file before generating the analysis.")
+
+# --- Display Results Section ---
+if st.session_state.report_generated:
+    st.markdown("---")
     
-upload_file = st.file_uploader("Please upload medical images for medical report", type=["png", "jpg", "jpeg", "gif", "bmp"])
+    col1, col2 = st.columns([1, 1.5]) # Create two columns
 
-submit_button = st.button("Generate Image Analysis")
+    with col1:
+        st.subheader("Uploaded Medical Image")
+        st.image(st.session_state.uploaded_image, caption="Patient Scan", use_column_width=True)
 
-if submit_button:
-    if upload_file is not None:
-        with st.spinner("Generating Image Analysis..."):
-            try:
-                # Create the model
-                model = genai.GenerativeModel(
-                    model_name="gemini-1.5-flash",
-                    generation_config=generation_config,
-                    safety_settings=safety_settings
-                )
-                
-                # Convert uploaded file to PIL Image
-                from PIL import Image
-                import io
-                
-                image = Image.open(io.BytesIO(upload_file.read()))
-                
-                # Generate response with image
-                response = model.generate_content([system_prompt, image])
-                
-                st.success("Image Analysis Generated Successfully!")
-                
-                # Display medical report in a dark container
-                st.markdown(f"""
-                <div class="medical-report">
-                    <h3>🏥 Medical Report Analysis</h3>
-                    <p>{response.text.replace(chr(10), '<br>')}</p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Add PDF download button
-                st.markdown("---")
-                col1, col2, col3 = st.columns([1, 2, 1])
-                with col2:
-                    if st.button("📄 Download PDF Report", key="pdf_download"):
-                        # Generate PDF
-                        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        filename = f"medical_report_{current_time}.pdf"
-                        
-                        pdf_buffer = generate_pdf_report(
-                            response.text, 
-                            patient_info=f"Report generated from {upload_file.name}",
-                            filename=filename
-                        )
-                        
-                        st.download_button(
-                            label="📥 Click to Download PDF",
-                            data=pdf_buffer.getvalue(),
-                            file_name=filename,
-                            mime="application/pdf",
-                            key="download_pdf_button"
-                        )
-                
-            except Exception as e:
-                st.error(f"An error occurred: {str(e)}")
-                st.write("Please check your API key and try again.")
-    else:
-        st.error("Please upload a medical image file to proceed.")
+    with col2:
+        st.subheader("AI-Generated Analysis")
+        st.markdown(st.session_state.analysis_text)
+        
+        # Generate PDF in memory
+        pdf_buffer = generate_pdf_report(
+            st.session_state.analysis_text,
+            patient_info=st.session_state.patient_info
+        )
+        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"Medical_Report_{current_time}.pdf"
 
-# Footer
+        # Add the download button
+        st.download_button(
+            label="📄 Download Full Report (PDF)",
+            data=pdf_buffer,
+            file_name=filename,
+            mime="application/pdf",
+            key="download_pdf"
+        )
+
+# --- Footer ---
+st.markdown("---")
 st.markdown("""
 <div class="footer">
-    <p>🩺 Developed by <strong>Sankalp</strong> | Medical AI Assistant 🤖</p>
+    <p>Developed by <strong>Sankalp</strong> | This is a demonstration tool and not for clinical use.</p>
 </div>
 """, unsafe_allow_html=True)
