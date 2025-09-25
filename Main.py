@@ -98,7 +98,7 @@ def set_page_background(png_file):
     page_bg_img = f'''
     <style>
     .stApp {{
-        background-image: url("data:image/jpg;base64,{bin_str}");
+        background-image: url("data:image/png;base64,{bin_str}");
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
@@ -237,7 +237,7 @@ model = genai.GenerativeModel(
 
 # --- Streamlit App Layout ---
 st.set_page_config(page_title="AI Medical Report Analyzer", page_icon="🩺", layout="wide")
-set_page_background('public/Backgroun.jpg')
+#set_page_background('public/Background.png')
 
 # Initialize session state
 if 'report_generated' not in st.session_state:
