@@ -1,4 +1,8 @@
 import streamlit as st
+
+# --- Streamlit App Layout (MUST BE FIRST) ---
+st.set_page_config(page_title="AI Medical Report Analyzer", page_icon="🩺", layout="wide")
+
 from pathlib import Path
 import google.generativeai as genai
 import base64
@@ -230,13 +234,12 @@ safety_settings = [
 ]
 
 model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash",
+    model_name="gemini-2.0-flash",
     generation_config=generation_config,
     safety_settings=safety_settings
 )
 
-# --- Streamlit App Layout ---
-st.set_page_config(page_title="AI Medical Report Analyzer", page_icon="🩺", layout="wide")
+# --- Main App Interface ---
 #set_page_background('public/Background.png')
 
 # Initialize session state
