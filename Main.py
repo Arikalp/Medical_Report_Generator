@@ -289,7 +289,7 @@ if st.session_state.report_generated:
 
     with col1:
         st.subheader("Uploaded Medical Image")
-        st.image(st.session_state.uploaded_image, caption="Patient Scan", use_column_width=True)
+        st.image(st.session_state.uploaded_image, caption="Patient Scan", use_container_width=True)
 
     with col2:
         st.subheader("AI-Generated Analysis")
