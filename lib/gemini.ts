@@ -24,7 +24,7 @@ You are a specialized AI Medical Assistant. Your task is to analyze medical imag
   **Disclaimer:** This AI-generated analysis is for informational purposes only and is not a substitute for professional medical advice. A qualified healthcare professional must verify all findings.
 `;
 
-export async function analyzeImage(imageBase64: string, mimeType: string): Promise<string> {
+export async function analyzeImages(images: { base64: string; mimeType: string }[]): Promise<string> {
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     generationConfig: {
@@ -53,14 +53,16 @@ export async function analyzeImage(imageBase64: string, mimeType: string): Promi
     ],
   });
 
+  const imageParts = images.map(img => ({
+    inlineData: {
+      data: img.base64,
+      mimeType: img.mimeType,
+    },
+  }));
+
   const result = await model.generateContent([
     systemPrompt,
-    {
-      inlineData: {
-        data: imageBase64,
-        mimeType,
-      },
-    },
+    ...imageParts,
   ]);
 
   const response = await result.response;

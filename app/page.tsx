@@ -6,26 +6,27 @@ import { generatePDF } from '@/lib/pdf-generator';
 
 export default function Home() {
   const [patientName, setPatientName] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [patientInfo, setPatientInfo] = useState<string>('');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setSelectedFiles(files);
+      const urls = files.map((file) => URL.createObjectURL(file));
+      setPreviewUrls(urls);
       setAnalysis(null);
       setError(null);
     }
   };
 
   const handleAnalyze = async () => {
-    if (!selectedFile) {
-      setError('Please select an image first');
+    if (selectedFiles.length === 0) {
+      setError('Please select at least one image first');
       return;
     }
 
@@ -34,7 +35,7 @@ export default function Home() {
 
     try {
       const formData = new FormData();
-      formData.append('image', selectedFile);
+      selectedFiles.forEach((file) => formData.append('image', file));
       formData.append('patientInfo', patientName || 'Anonymous');
 
       const response = await fetch('/api/analyze', {
@@ -79,7 +80,7 @@ export default function Home() {
   const renderMarkdown = (text: string) => {
     return text.split('\n').map((line, index) => {
       const trimmed = line.trim();
-      
+
       if (!trimmed) {
         return <br key={index} />;
       }
@@ -140,11 +141,12 @@ export default function Home() {
 
           <div className="mb-6">
             <label className="block text-gray-300 mb-2 font-medium">
-              Choose a medical image...
+              Choose medical images...
             </label>
             <div className="relative">
               <input
                 type="file"
+                multiple
                 accept="image/png,image/jpeg,image/jpg,image/bmp,image/gif"
                 onChange={handleFileChange}
                 className="w-full px-4 py-3 bg-gray-800/50 border border-dashed border-blue-500 rounded-lg text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -154,7 +156,7 @@ export default function Home() {
 
           <button
             onClick={handleAnalyze}
-            disabled={!selectedFile || isAnalyzing}
+            disabled={selectedFiles.length === 0 || isAnalyzing}
             className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-[1.02] disabled:scale-100 disabled:cursor-not-allowed shadow-lg"
           >
             {isAnalyzing ? (
@@ -177,9 +179,9 @@ export default function Home() {
             </div>
           )}
 
-          {!selectedFile && !isAnalyzing && !error && (
+          {!selectedFiles.length && !isAnalyzing && !error && (
             <div className="mt-4 bg-yellow-900/30 border border-yellow-500 text-yellow-300 px-4 py-3 rounded-lg text-sm">
-              Please upload an image file before generating the analysis.
+              Please upload at least one image file before generating the analysis.
             </div>
           )}
         </div>
@@ -191,15 +193,19 @@ export default function Home() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Image Preview */}
               <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border border-gray-700">
-                <h2 className="text-2xl font-bold text-white mb-4">Uploaded Medical Image</h2>
-                {previewUrl && (
-                  <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-800">
-                    <Image
-                      src={previewUrl}
-                      alt="Patient Scan"
-                      fill
-                      className="object-contain"
-                    />
+                <h2 className="text-2xl font-bold text-white mb-4">Uploaded Medical Images</h2>
+                {previewUrls.length > 0 && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {previewUrls.map((url, idx) => (
+                      <div key={idx} className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-800">
+                        <Image
+                          src={url}
+                          alt={`Patient Scan ${idx + 1}`}
+                          fill
+                          className="object-contain"
+                        />
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

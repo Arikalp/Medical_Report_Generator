@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzeImage } from '@/lib/gemini';
+import { analyzeImages } from '@/lib/gemini';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -7,23 +7,29 @@ export const maxDuration = 60;
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const image = formData.get('image') as File;
+    const images = formData.getAll('image') as File[];
     const patientInfo = formData.get('patientInfo') as string;
 
-    if (!image) {
+    if (!images || images.length === 0) {
       return NextResponse.json(
         { error: 'No image provided' },
         { status: 400 }
       );
     }
 
-    // Convert image to base64
-    const arrayBuffer = await image.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64Image = buffer.toString('base64');
+    const processedImages = await Promise.all(
+      images.map(async (image) => {
+        const arrayBuffer = await image.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        return {
+          base64: buffer.toString('base64'),
+          mimeType: image.type,
+        };
+      })
+    );
 
-    // Analyze image using Gemini
-    const analysisResult = await analyzeImage(base64Image, image.type);
+    // Analyze images using Gemini
+    const analysisResult = await analyzeImages(processedImages);
 
     return NextResponse.json({
       success: true,
